@@ -142,10 +142,17 @@ export function GameProvider({ children }: GameProviderProps) {
         throw new Error(data.error || 'Failed to create game');
       }
 
+      // Transform players data to flat structure
+      const transformedPlayers = data.game.players.map((player: any) => ({
+        ...player,
+        username: player.users?.username || player.username,
+        display_name: player.users?.display_name || player.display_name
+      }));
+
       // Set game state
       dispatch({ type: 'SET_GAME', payload: data.game });
       dispatch({ type: 'SET_CURRENT_PLAYER', payload: data.player });
-      dispatch({ type: 'SET_PLAYERS', payload: data.game.players });
+      dispatch({ type: 'SET_PLAYERS', payload: transformedPlayers });
 
       // Connect to socket
       await socketService.connect(data.gameCode, authState.user?.id || '');
@@ -184,10 +191,17 @@ export function GameProvider({ children }: GameProviderProps) {
         throw new Error(data.error || 'Failed to join game');
       }
 
+      // Transform players data to flat structure  
+      const transformedPlayers = data.game.players.map((player: any) => ({
+        ...player,
+        username: player.users?.username || player.username,
+        display_name: player.users?.display_name || player.display_name
+      }));
+
       // Set game state
       dispatch({ type: 'SET_GAME', payload: data.game });
       dispatch({ type: 'SET_CURRENT_PLAYER', payload: data.player });
-      dispatch({ type: 'SET_PLAYERS', payload: data.game.players });
+      dispatch({ type: 'SET_PLAYERS', payload: transformedPlayers });
 
       // Connect to socket
       await socketService.connect(gameCode, authState.user?.id || '');
@@ -210,7 +224,12 @@ export function GameProvider({ children }: GameProviderProps) {
   const setupSocketListeners = () => {
     // Player joined
     socketService.onPlayerJoined((data) => {
-      dispatch({ type: 'SET_PLAYERS', payload: data.players });
+      const transformedPlayers = data.players.map((player: any) => ({
+        ...player,
+        username: player.users?.username || player.username,
+        display_name: player.users?.display_name || player.display_name
+      }));
+      dispatch({ type: 'SET_PLAYERS', payload: transformedPlayers });
     });
 
     // Player left
@@ -220,12 +239,24 @@ export function GameProvider({ children }: GameProviderProps) {
 
     // Game started
     socketService.onGameStarted((gameData) => {
+      console.log('Game started event received:', gameData);
+      
       dispatch({ type: 'SET_GAME', payload: gameData.game });
       dispatch({ type: 'SET_GAME_PHASE', payload: 'card_selection' });
-      if (gameData.game.players) {
-        const currentPlayer = gameData.game.players.find((p: any) => p.id === state.currentPlayer?.id);
-        if (currentPlayer && currentPlayer.cards) {
-          dispatch({ type: 'SET_PLAYER_CARDS', payload: currentPlayer.cards });
+      
+      // Set current round
+      if (gameData.round) {
+        dispatch({ type: 'SET_CURRENT_ROUND', payload: gameData.round });
+      }
+      
+      // Set player cards from backend response
+      if (gameData.playerCards && authState.user?.id) {
+        const myCards = gameData.playerCards[authState.user.id];
+        if (myCards && myCards.length > 0) {
+          console.log('Setting player cards:', myCards);
+          dispatch({ type: 'SET_PLAYER_CARDS', payload: myCards });
+        } else {
+          console.log('No cards found for current user');
         }
       }
     });

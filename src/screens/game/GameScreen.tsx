@@ -8,7 +8,6 @@ import {
   FlatList,
   Alert,
   Dimensions,
-  ScrollView,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useGame } from '../../context/GameContext';
@@ -234,12 +233,12 @@ export default function GameScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.content}>
         {state.gamePhase === 'card_selection' && renderCardSelectionPhase()}
         {state.gamePhase === 'voting' && renderVotingPhase()}
         {state.gamePhase === 'results' && renderResultsPhase()}
         {state.gamePhase === 'game_ended' && renderGameEndedPhase()}
-      </ScrollView>
+      </View>
 
       {/* Players Status */}
       <View style={styles.playersStatus}>

@@ -46,6 +46,14 @@ export default function LobbyScreen({ navigation, route }: any) {
     setCanStart(connectedPlayers.length >= 3);
   }, [state.players]);
 
+  // Navigate to game when game starts
+  useEffect(() => {
+    if (state.gamePhase === 'card_selection') {
+      console.log('Game started! Navigating to Game screen...');
+      navigation.navigate('Game');
+    }
+  }, [state.gamePhase, navigation]);
+
   const handleStartGame = () => {
     if (!canStart) {
       Alert.alert('Uyarı', 'Oyunu başlatmak için en az 3 oyuncu gerekli');
