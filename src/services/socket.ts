@@ -2,7 +2,7 @@ import { io, Socket } from 'socket.io-client';
 
 class SocketService {
   private socket: Socket | null = null;
-  private serverUrl = 'http://localhost:3000'; // Development server
+  private serverUrl = 'http://172.20.10.5:3000'; // Development server
 
   connect(gameCode: string, userId: string): Promise<void> {
     return new Promise((resolve, reject) => {
