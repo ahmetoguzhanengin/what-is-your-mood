@@ -2,12 +2,12 @@ import { io, Socket } from 'socket.io-client';
 
 class SocketService {
   private socket: Socket | null = null;
-  private serverUrl = 'http://192.168.1.103:3000'; // Development server
+  private serverUrl = 'http://localhost:3000'; // Development server
 
-  connect(gameCode: string, playerId: string): Promise<void> {
+  connect(gameCode: string, userId: string): Promise<void> {
     return new Promise((resolve, reject) => {
       this.socket = io(this.serverUrl, {
-        query: { gameCode, playerId }
+        query: { gameCode, userId }
       });
 
       this.socket.on('connect', () => {
@@ -30,8 +30,8 @@ class SocketService {
   }
 
   // Game Events
-  joinGame(gameCode: string, username: string) {
-    this.socket?.emit('join_game', { gameCode, username });
+  joinGame(gameCode: string, userId: string) {
+    this.socket?.emit('join_game', { gameCode, userId });
   }
 
   startGame() {

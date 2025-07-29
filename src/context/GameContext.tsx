@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
 import { Game, Player, MemeCard, GameRound } from '../services/supabase';
 import { socketService } from '../services/socket';
+import { useAuth } from './AuthContext';
 
 // Game State Types
 type GameState = {
@@ -105,9 +106,23 @@ type GameProviderProps = {
 
 export function GameProvider({ children }: GameProviderProps) {
   const [state, dispatch] = useReducer(gameReducer, initialState);
+  const { state: authState } = useAuth();
 
   // API Base URL
-  const API_BASE = 'http://192.168.1.103:3000/api';
+  const API_BASE = 'http://localhost:3000/api';
+
+  // Helper function to get auth headers
+  const getAuthHeaders = () => {
+    const headers: any = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (authState.session?.access_token) {
+      headers.Authorization = `Bearer ${authState.session.access_token}`;
+    }
+    
+    return headers;
+  };
 
   // Create Game
   const createGame = async (username: string): Promise<string> => {
@@ -117,9 +132,7 @@ export function GameProvider({ children }: GameProviderProps) {
 
       const response = await fetch(`${API_BASE}/games`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ username }),
       });
 
@@ -135,14 +148,14 @@ export function GameProvider({ children }: GameProviderProps) {
       dispatch({ type: 'SET_PLAYERS', payload: data.game.players });
 
       // Connect to socket
-      await socketService.connect(data.gameCode, data.playerId);
+      await socketService.connect(data.gameCode, authState.user?.id || '');
       dispatch({ type: 'SET_CONNECTED', payload: true });
 
       // Setup socket listeners
       setupSocketListeners();
 
       // Join socket room
-      socketService.joinGame(data.gameCode, username);
+      socketService.joinGame(data.gameCode, authState.user?.id || '');
 
       return data.gameCode;
     } catch (error: any) {
@@ -161,9 +174,7 @@ export function GameProvider({ children }: GameProviderProps) {
 
       const response = await fetch(`${API_BASE}/games/${gameCode}/join`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ username }),
       });
 
@@ -179,14 +190,14 @@ export function GameProvider({ children }: GameProviderProps) {
       dispatch({ type: 'SET_PLAYERS', payload: data.game.players });
 
       // Connect to socket
-      await socketService.connect(gameCode, data.playerId);
+      await socketService.connect(gameCode, authState.user?.id || '');
       dispatch({ type: 'SET_CONNECTED', payload: true });
 
       // Setup socket listeners
       setupSocketListeners();
 
       // Join socket room
-      socketService.joinGame(gameCode, username);
+      socketService.joinGame(gameCode, authState.user?.id || '');
     } catch (error: any) {
       dispatch({ type: 'SET_ERROR', payload: error.message });
       throw error;
