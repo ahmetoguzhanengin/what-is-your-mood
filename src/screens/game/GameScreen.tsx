@@ -103,7 +103,9 @@ export default function GameScreen({ navigation }: any) {
   };
 
   const handleVote = (playerCardId: string) => {
-    submitVote(playerCardId);
+    if (!state.hasVoted) {
+      submitVote(playerCardId);
+    }
   };
 
   const handleLeaveGame = () => {
@@ -189,9 +191,13 @@ export default function GameScreen({ navigation }: any) {
         numColumns={2}
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={styles.votingCard}
+            style={[
+              styles.votingCard,
+              state.hasVoted && styles.disabledCard,
+            ]}
             onPress={() => handleVote(item.id)}
-            activeOpacity={0.8}
+            activeOpacity={state.hasVoted ? 1 : 0.8}
+            disabled={state.hasVoted}
           >
             <Image
               source={{ uri: item.meme_card.image_url }}
@@ -206,6 +212,16 @@ export default function GameScreen({ navigation }: any) {
             <View style={styles.playerBadge}>
               <Text style={styles.playerBadgeText}>
                 {item.player.display_name || item.player.username}
+              </Text>
+            </View>
+            
+            {/* Vote Counter */}
+            <View style={styles.voteCounter}>
+              <Text style={styles.voteCountText}>
+                {Array(state.voteCount[item.id] || 0).fill('👤').join(' ')}
+              </Text>
+              <Text style={styles.voteNumberText}>
+                {state.voteCount[item.id] || 0} oy
               </Text>
             </View>
           </TouchableOpacity>
@@ -305,6 +321,9 @@ export default function GameScreen({ navigation }: any) {
       <View style={styles.playersStatus}>
         <Text style={styles.playersStatusText}>
           👥 {state.players.filter(p => p.is_connected).length} oyuncu aktif
+          {state.gamePhase === 'voting' && (
+            state.hasVoted ? ' • ✅ Oy verdin!' : ' • 🗳️ Oy ver!'
+          )}
         </Text>
       </View>
     </SafeAreaView>
@@ -453,6 +472,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  voteCounter: {
+    backgroundColor: '#1F2937',
+    marginHorizontal: 8,
+    marginBottom: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    alignItems: 'center',
+    minHeight: 40,
+    justifyContent: 'center',
+  },
+  voteCountText: {
+    fontSize: 12,
+    color: '#FCD34D',
+    textAlign: 'center',
+    marginBottom: 2,
+    minHeight: 16,
+  },
+  voteNumberText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#9CA3AF',
     textAlign: 'center',
   },
   submitButton: {

@@ -11,6 +11,8 @@ type GameState = {
   currentRound: GameRound | null;
   playerCards: MemeCard[];
   submittedCards: any[];
+  voteCount: { [cardId: string]: number }; // Oy sayaçları
+  hasVoted: boolean; // Kullanıcı oy verdi mi?
   roundResults: any | null;
   gamePhase: 'lobby' | 'card_selection' | 'voting' | 'results' | 'game_ended';
   isConnected: boolean;
@@ -28,6 +30,9 @@ type GameAction =
   | { type: 'SET_CURRENT_ROUND'; payload: GameRound }
   | { type: 'SET_PLAYER_CARDS'; payload: MemeCard[] }
   | { type: 'SET_SUBMITTED_CARDS'; payload: any[] }
+  | { type: 'ADD_VOTE'; payload: string } // Karta oy ekle
+  | { type: 'SET_VOTE_COUNT'; payload: { [cardId: string]: number } } // Oy sayaçlarını set et
+  | { type: 'SET_HAS_VOTED'; payload: boolean } // Kullanıcı oy verdi mi?
   | { type: 'SET_ROUND_RESULTS'; payload: any }
   | { type: 'SET_GAME_PHASE'; payload: GameState['gamePhase'] }
   | { type: 'SET_CONNECTED'; payload: boolean }
@@ -43,6 +48,8 @@ const initialState: GameState = {
   currentRound: null,
   playerCards: [],
   submittedCards: [],
+  voteCount: {},
+  hasVoted: false,
   roundResults: null,
   gamePhase: 'lobby',
   isConnected: false,
@@ -72,6 +79,18 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, playerCards: action.payload };
     case 'SET_SUBMITTED_CARDS':
       return { ...state, submittedCards: action.payload };
+    case 'ADD_VOTE':
+      return { 
+        ...state, 
+        voteCount: {
+          ...state.voteCount,
+          [action.payload]: (state.voteCount[action.payload] || 0) + 1
+        }
+      };
+    case 'SET_VOTE_COUNT':
+      return { ...state, voteCount: action.payload };
+    case 'SET_HAS_VOTED':
+      return { ...state, hasVoted: action.payload };
     case 'SET_ROUND_RESULTS':
       return { ...state, roundResults: action.payload };
     case 'SET_GAME_PHASE':
@@ -255,6 +274,8 @@ export function GameProvider({ children }: GameProviderProps) {
       console.log('🗳️ submittedCards length:', data.submittedCards?.length);
       
       dispatch({ type: 'SET_SUBMITTED_CARDS', payload: data.submittedCards });
+      dispatch({ type: 'SET_VOTE_COUNT', payload: {} }); // Oy sayaçlarını sıfırla
+      dispatch({ type: 'SET_HAS_VOTED', payload: false }); // Oy durumunu sıfırla
       dispatch({ type: 'SET_GAME_PHASE', payload: 'voting' });
     });
 
@@ -350,8 +371,15 @@ export function GameProvider({ children }: GameProviderProps) {
   // Submit Vote
   const submitVote = (playerCardId: string) => {
     const roundId = state.currentRound?.id;
-    if (roundId) {
+    if (roundId && !state.hasVoted) {
+      console.log('🗳️ Voting for card:', playerCardId);
       socketService.submitVote(playerCardId, roundId);
+      
+      // Update local state
+      dispatch({ type: 'ADD_VOTE', payload: playerCardId });
+      dispatch({ type: 'SET_HAS_VOTED', payload: true });
+    } else if (state.hasVoted) {
+      console.warn('User has already voted');
     } else {
       console.error('No current round ID for voting');
     }
