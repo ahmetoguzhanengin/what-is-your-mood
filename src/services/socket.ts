@@ -75,6 +75,10 @@ class SocketService {
     this.socket?.on('vote_submitted', callback);
   }
 
+  onVoteUpdate(callback: (data: any) => void) {
+    this.socket?.on('vote_update', callback);
+  }
+
   onRoundEnded(callback: (results: any) => void) {
     this.socket?.on('round_ended', callback);
   }

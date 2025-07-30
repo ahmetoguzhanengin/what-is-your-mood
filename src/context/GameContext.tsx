@@ -267,6 +267,12 @@ export function GameProvider({ children }: GameProviderProps) {
       // You can add progress indicator here later
     });
 
+    // Vote update (real-time vote counts)
+    socketService.onVoteUpdate((data) => {
+      console.log('🗳️ Real-time vote update:', data);
+      dispatch({ type: 'SET_VOTE_COUNT', payload: data.voteCounts });
+    });
+
     // Voting started
     socketService.onVotingStarted((data: any) => {
       console.log('🗳️ Voting started with cards:', data);
@@ -307,16 +313,37 @@ export function GameProvider({ children }: GameProviderProps) {
     });
 
     // New round
-    socketService.onNewRound((roundData) => {
-      dispatch({ type: 'SET_CURRENT_ROUND', payload: roundData });
+    socketService.onNewRound((data) => {
+      console.log('🆕 New round started:', data);
+      console.log('🃏 New round player cards:', data.playerCards);
+      
+      // Reset all voting state
+      dispatch({ type: 'SET_CURRENT_ROUND', payload: data.round });
       dispatch({ type: 'SET_GAME_PHASE', payload: 'card_selection' });
+      dispatch({ type: 'SET_SUBMITTED_CARDS', payload: [] });
+      dispatch({ type: 'SET_VOTE_COUNT', payload: {} });
+      dispatch({ type: 'SET_HAS_VOTED', payload: false });
+      dispatch({ type: 'SET_ROUND_RESULTS', payload: null });
+      
+      // Set new player cards
+      if (data.playerCards && authState.user?.id) {
+        const myCards = data.playerCards[authState.user.id];
+        if (myCards && myCards.length > 0) {
+          console.log('✅ Setting new player cards for round', data.roundNumber, ':', myCards);
+          dispatch({ type: 'SET_PLAYER_CARDS', payload: myCards });
+        } else {
+          console.log('⚠️ No cards found for current user in new round');
+        }
+      }
+      
+      console.log('🔄 Ready for round', data.roundNumber);
     });
 
 
 
     // Round ended
     socketService.onRoundEnded((results) => {
-      console.log('Round ended results:', results);
+      console.log('🏁 Round ended results:', results);
       
       // Store round results
       dispatch({ type: 'SET_ROUND_RESULTS', payload: results });
@@ -331,10 +358,8 @@ export function GameProvider({ children }: GameProviderProps) {
         dispatch({ type: 'SET_PLAYERS', payload: updatedPlayers });
       }
       
-      // Auto advance to next round after 5 seconds (same as backend)
-      setTimeout(() => {
-        dispatch({ type: 'SET_GAME_PHASE', payload: 'card_selection' });
-      }, 5000);
+      console.log('⏳ Waiting for next round...');
+      // Backend will emit 'new_round' after 5 seconds
     });
 
     // Game ended
@@ -375,8 +400,7 @@ export function GameProvider({ children }: GameProviderProps) {
       console.log('🗳️ Voting for card:', playerCardId);
       socketService.submitVote(playerCardId, roundId);
       
-      // Update local state
-      dispatch({ type: 'ADD_VOTE', payload: playerCardId });
+      // Only mark that user has voted (vote count will come from backend)
       dispatch({ type: 'SET_HAS_VOTED', payload: true });
     } else if (state.hasVoted) {
       console.warn('User has already voted');

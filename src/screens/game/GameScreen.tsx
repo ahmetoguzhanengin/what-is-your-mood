@@ -69,6 +69,7 @@ export default function GameScreen({ navigation }: any) {
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [timeLeft, setTimeLeft] = useState(60); // 60 second timer
+  const [resultsCountdown, setResultsCountdown] = useState(5); // Results countdown
 
   useEffect(() => {
     // Timer countdown
@@ -85,7 +86,19 @@ export default function GameScreen({ navigation }: any) {
       setHasSubmitted(false);
       setTimeLeft(60);
     }
+    // Start countdown when results phase begins
+    if (state.gamePhase === 'results') {
+      setResultsCountdown(5);
+    }
   }, [state.gamePhase]);
+
+  useEffect(() => {
+    // Results countdown timer
+    if (state.gamePhase === 'results' && resultsCountdown > 0) {
+      const timer = setTimeout(() => setResultsCountdown(resultsCountdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resultsCountdown, state.gamePhase]);
 
   const handleCardSelect = (cardId: string) => {
     if (hasSubmitted) return;
@@ -258,7 +271,11 @@ export default function GameScreen({ navigation }: any) {
         </View>
       )}
       
-      <Text style={styles.nextRoundText}>5 saniye sonra sonraki tur...</Text>
+      <Text style={styles.nextRoundText}>
+        {resultsCountdown > 0 
+          ? `${resultsCountdown} saniye sonra sonraki tur...` 
+          : 'Sonraki tur yükleniyor...'}
+      </Text>
     </View>
   );
 

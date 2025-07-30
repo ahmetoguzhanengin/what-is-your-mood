@@ -694,19 +694,33 @@ io.on('connection', (socket) => {
           round_id: roundId
         });
 
-      // Check if all players have voted
-      const { data: allVotes } = await supabase
+      // Get current vote counts for real-time update
+      const { data: currentVotes } = await supabase
         .from('votes')
-        .select('*')
+        .select('player_card_id')
         .eq('round_id', roundId);
 
+      // Calculate vote counts per card
+      const voteCounts = {};
+      currentVotes.forEach(vote => {
+        const cardId = vote.player_card_id;
+        voteCounts[cardId] = (voteCounts[cardId] || 0) + 1;
+      });
+
+      // Broadcast real-time vote update to all players
+      io.to(gameCode).emit('vote_update', {
+        voteCounts: voteCounts,
+        totalVotes: currentVotes.length
+      });
+
+      // Check if all players have voted
       const { data: allPlayers } = await supabase
         .from('players')
         .select('id')
         .eq('game_id', game.id)
         .eq('is_connected', true);
 
-      if (allVotes.length === allPlayers.length) {
+      if (currentVotes.length === allPlayers.length) {
         // All voted, calculate results
         await calculateRoundResults(roundId, gameCode);
       }
@@ -870,9 +884,37 @@ async function startNextRound(gameId, gameCode) {
       .select()
       .single();
 
+    // Get connected players for new cards
+    const { data: connectedPlayers } = await supabase
+      .from('players')
+      .select('user_id')
+      .eq('game_id', gameId)
+      .eq('is_connected', true);
+
+    // Get random meme cards for each player
+    const { data: allMemes } = await supabase
+      .from('meme_cards')
+      .select('*')
+      .limit(100);
+
+    const playerCards = {};
+    connectedPlayers.forEach(player => {
+      const playerMemes = [];
+      const availableMemes = [...allMemes];
+      
+      // Give 7 random cards to each player
+      for (let i = 0; i < 7 && availableMemes.length > 0; i++) {
+        const randomIndex = Math.floor(Math.random() * availableMemes.length);
+        playerMemes.push(availableMemes.splice(randomIndex, 1)[0]);
+      }
+      
+      playerCards[player.user_id] = playerMemes;
+    });
+
     io.to(gameCode).emit('new_round', {
       round: gameRound,
-      roundNumber: newRoundNumber
+      roundNumber: newRoundNumber,
+      playerCards: playerCards
     });
 
   } catch (error) {
