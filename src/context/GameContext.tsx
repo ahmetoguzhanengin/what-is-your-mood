@@ -114,7 +114,7 @@ export function GameProvider({ children }: GameProviderProps) {
   const { state: authState } = useAuth();
 
   // API Base URL
-  const API_BASE = 'http://192.168.1.111:3000/api';
+  const API_BASE = 'http://192.168.1.110:3000/api';
 
   // Helper function to get auth headers
   const getAuthHeaders = () => {
@@ -251,6 +251,9 @@ export function GameProvider({ children }: GameProviderProps) {
     // Voting started
     socketService.onVotingStarted((data: any) => {
       console.log('🗳️ Voting started with cards:', data);
+      console.log('🗳️ submittedCards array:', data.submittedCards);
+      console.log('🗳️ submittedCards length:', data.submittedCards?.length);
+      
       dispatch({ type: 'SET_SUBMITTED_CARDS', payload: data.submittedCards });
       dispatch({ type: 'SET_GAME_PHASE', payload: 'voting' });
     });
@@ -288,11 +291,7 @@ export function GameProvider({ children }: GameProviderProps) {
       dispatch({ type: 'SET_GAME_PHASE', payload: 'card_selection' });
     });
 
-    // Voting started
-    socketService.onVotingStarted((submittedCards) => {
-      dispatch({ type: 'SET_SUBMITTED_CARDS', payload: submittedCards });
-      dispatch({ type: 'SET_GAME_PHASE', payload: 'voting' });
-    });
+
 
     // Round ended
     socketService.onRoundEnded((results) => {

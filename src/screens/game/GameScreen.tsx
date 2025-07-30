@@ -202,9 +202,12 @@ export default function GameScreen({ navigation }: any) {
             <Text style={styles.memeTitle} numberOfLines={2}>
               {item.meme_card.title}
             </Text>
-            <Text style={styles.playerName}>
-              {item.player.display_name || item.player.username}
-            </Text>
+            {/* Enhanced Player Badge */}
+            <View style={styles.playerBadge}>
+              <Text style={styles.playerBadgeText}>
+                {item.player.display_name || item.player.username}
+              </Text>
+            </View>
           </TouchableOpacity>
         )}
         style={styles.cardsList}
@@ -433,6 +436,23 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: 'bold',
     color: '#10B981',
+    textAlign: 'center',
+  },
+  playerBadge: {
+    backgroundColor: '#374151',
+    marginHorizontal: 8,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#4B5563',
+  },
+  playerBadgeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
     textAlign: 'center',
   },
   submitButton: {

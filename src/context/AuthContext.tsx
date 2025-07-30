@@ -81,7 +81,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
   // API Base URL
-  const API_BASE = 'http://192.168.1.111:3000/api';
+  const API_BASE = 'http://192.168.1.110:3000/api';
 
   // Initialize auth state
   useEffect(() => {
