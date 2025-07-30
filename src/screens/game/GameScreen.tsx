@@ -128,7 +128,7 @@ export default function GameScreen({ navigation }: any) {
     <>
       {/* Prompt */}
       <PromptCard 
-        prompt="Pazartesi sabahı alarm çaldığında ruh halim:" 
+        prompt={state.currentRound?.prompt_text || "Soru yükleniyor..."} 
         round={state.currentGame?.current_round || 1}
         maxRounds={state.currentGame?.max_rounds || 7}
       />
@@ -176,7 +176,7 @@ export default function GameScreen({ navigation }: any) {
     <>
       {/* Prompt */}
       <PromptCard 
-        prompt="Pazartesi sabahı alarm çaldığında ruh halim:" 
+        prompt={state.currentRound?.prompt_text || "Soru yükleniyor..."} 
         round={state.currentGame?.current_round || 1}
         maxRounds={state.currentGame?.max_rounds || 7}
       />
@@ -194,12 +194,16 @@ export default function GameScreen({ navigation }: any) {
             activeOpacity={0.8}
           >
             <Image
-              source={{ uri: item.card.image_url }}
+              source={{ uri: item.meme_card.image_url }}
               style={styles.memeImage}
               contentFit="cover"
+              placeholder="📷"
             />
             <Text style={styles.memeTitle} numberOfLines={2}>
-              {item.card.title}
+              {item.meme_card.title}
+            </Text>
+            <Text style={styles.playerName}>
+              {item.player.display_name || item.player.username}
             </Text>
           </TouchableOpacity>
         )}
@@ -213,14 +217,68 @@ export default function GameScreen({ navigation }: any) {
   const renderResultsPhase = () => (
     <View style={styles.resultsContainer}>
       <Text style={styles.resultsTitle}>🎉 Tur Sonuçları</Text>
-      <Text style={styles.resultsText}>Sonuçlar gösteriliyor...</Text>
+      
+      {state.roundResults?.winner && (
+        <View style={styles.winnerSection}>
+          <Text style={styles.winnerText}>
+            🏆 Kazanan: {state.roundResults.winner.users?.username || state.roundResults.winner.username}
+          </Text>
+        </View>
+      )}
+      
+      {state.roundResults?.scores && (
+        <View style={styles.scoresSection}>
+          <Text style={styles.scoresTitle}>📊 Skorlar:</Text>
+          {state.roundResults.scores.map((score: any, index: number) => (
+            <View key={index} style={styles.scoreItem}>
+              <Text style={styles.scorePlayerName}>
+                {score.player.username}: {score.score} puan
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+      
+      <Text style={styles.nextRoundText}>5 saniye sonra sonraki tur...</Text>
     </View>
   );
 
   const renderGameEndedPhase = () => (
     <View style={styles.resultsContainer}>
-      <Text style={styles.resultsTitle}>🏆 Oyun Bitti!</Text>
-      <Text style={styles.resultsText}>Final sonuçları gösteriliyor...</Text>
+      <Text style={styles.gameEndTitle}>🏆 Oyun Bitti!</Text>
+      
+      {state.roundResults?.winner && (
+        <View style={styles.championSection}>
+          <Text style={styles.championText}>
+            🎉 KAZANAN 🎉
+          </Text>
+          <Text style={styles.championName}>
+            {state.roundResults.winner.username}
+          </Text>
+        </View>
+      )}
+      
+      {state.roundResults?.finalScores && (
+        <View style={styles.finalScoresSection}>
+          <Text style={styles.finalScoresTitle}>📊 Final Sıralaması:</Text>
+          {state.roundResults.finalScores.map((score: any, index: number) => (
+            <View key={index} style={styles.finalScoreItem}>
+              <Text style={styles.rankNumber}>#{index + 1}</Text>
+              <Text style={styles.finalPlayerName}>
+                {score.player.username}
+              </Text>
+              <Text style={styles.finalScore}>{score.score} puan</Text>
+            </View>
+          ))}
+        </View>
+      )}
+      
+      <TouchableOpacity 
+        style={styles.newGameButton}
+        onPress={() => navigation.navigate('Home')}
+      >
+        <Text style={styles.newGameButtonText}>🎮 Yeni Oyun</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -369,6 +427,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textAlign: 'center',
   },
+  playerName: {
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#10B981',
+    textAlign: 'center',
+  },
   submitButton: {
     backgroundColor: '#10B981',
     borderRadius: 12,
@@ -407,5 +473,119 @@ const styles = StyleSheet.create({
   playersStatusText: {
     fontSize: 14,
     color: '#9CA3AF',
+  },
+  winnerSection: {
+    backgroundColor: '#10B981',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  winnerText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  scoresSection: {
+    backgroundColor: '#374151',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  scoresTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 12,
+  },
+  scoreItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  scorePlayerName: {
+    fontSize: 14,
+    color: '#D1D5DB',
+  },
+  nextRoundText: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  gameEndTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 30,
+  },
+  championSection: {
+    backgroundColor: '#FCD34D',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 30,
+    alignItems: 'center',
+  },
+  championText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#92400E',
+    marginBottom: 10,
+  },
+  championName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#92400E',
+  },
+  finalScoresSection: {
+    backgroundColor: '#374151',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 30,
+  },
+  finalScoresTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  finalScoreItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#4B5563',
+  },
+  rankNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#8B5CF6',
+    width: 30,
+  },
+  finalPlayerName: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    flex: 1,
+    marginLeft: 10,
+  },
+  finalScore: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#10B981',
+  },
+  newGameButton: {
+    backgroundColor: '#8B5CF6',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+  },
+  newGameButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
 }); 

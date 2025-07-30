@@ -41,6 +41,7 @@ export type GameRound = {
   game_id: string;
   round_number: number;
   prompt: string;
+  prompt_text: string;
   status: 'active' | 'voting' | 'completed';
   created_at: string;
 };

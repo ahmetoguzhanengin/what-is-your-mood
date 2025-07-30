@@ -38,12 +38,12 @@ class SocketService {
     this.socket?.emit('start_game');
   }
 
-  submitCard(cardId: string) {
-    this.socket?.emit('submit_card', { cardId });
+  submitCard(cardId: string, roundId?: string) {
+    this.socket?.emit('submit_card', { cardId, roundId });
   }
 
-  submitVote(playerCardId: string) {
-    this.socket?.emit('submit_vote', { playerCardId });
+  submitVote(playerCardId: string, roundId?: string) {
+    this.socket?.emit('submit_vote', { playerCardId, roundId });
   }
 
   // Listeners
@@ -67,7 +67,7 @@ class SocketService {
     this.socket?.on('card_submitted', callback);
   }
 
-  onVotingStarted(callback: (submittedCards: any[]) => void) {
+  onVotingStarted(callback: (data: any) => void) {
     this.socket?.on('voting_started', callback);
   }
 

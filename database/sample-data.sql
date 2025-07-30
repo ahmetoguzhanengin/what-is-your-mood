@@ -6,7 +6,7 @@ INSERT INTO public.meme_cards (title, image_url, tags, is_turkish, category) VAL
 
 -- Turkish Memes
 ('Türk Usulü Kahve', 'https://i.imgflip.com/2fm6x.jpg', ARRAY['kahve', 'türk', 'sabah'], true, 'daily_life'),
-('Annem Diyerek', 'https://i.imgflip.com/1g8my.jpg', ARRAY['anne', 'aile', 'türk'], true, 'family'),
+('Annem Diyerek', 'https://i.imgflip.com/1bij.jpg', ARRAY['anne', 'aile', 'türk'], true, 'family'),
 ('Ne Diyebilirim', 'https://i.imgflip.com/4t0m5.jpg', ARRAY['şaşkınlık', 'tepki'], true, 'reaction'),
 ('Türk Mimarisi', 'https://i.imgflip.com/30b1gx.jpg', ARRAY['türkiye', 'mimari'], true, 'culture'),
 ('Başka Dertlerim Var', 'https://i.imgflip.com/1bij.jpg', ARRAY['dert', 'yaşam'], true, 'life'),

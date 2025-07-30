@@ -274,7 +274,7 @@ app.post('/api/games', authenticateUser, async (req, res) => {
     const { username } = req.body;
     const userId = req.user.id;
 
-    // Check if user exists in our users table, if not create
+    // User should already exist from auth endpoint
     const { data: existingUser } = await supabase
       .from('users')
       .select('*')
@@ -282,21 +282,10 @@ app.post('/api/games', authenticateUser, async (req, res) => {
       .single();
 
     if (!existingUser) {
-      // Create user profile
-      await supabase
-        .from('users')
-        .insert({
-          id: userId,
-          username: username,
-          display_name: username
-        });
-      
-      // Create user stats
-      await supabase
-        .from('user_stats')
-        .insert({
-          user_id: userId
-        });
+      return res.status(400).json({ 
+        success: false, 
+        error: 'User profile not found. Please log out and sign in again.' 
+      });
     }
 
     // Generate unique game code
@@ -368,7 +357,8 @@ app.post('/api/games/:gameCode/join', authenticateUser, async (req, res) => {
     const { username } = req.body;
     const userId = req.user.id;
 
-    // Check if user exists in our users table, if not create
+    // User should already exist from auth endpoint
+    // If not, that means there's an auth issue
     const { data: existingUser } = await supabase
       .from('users')
       .select('*')
@@ -376,21 +366,10 @@ app.post('/api/games/:gameCode/join', authenticateUser, async (req, res) => {
       .single();
 
     if (!existingUser) {
-      // Create user profile
-      await supabase
-        .from('users')
-        .insert({
-          id: userId,
-          username: username,
-          display_name: username
-        });
-      
-      // Create user stats
-      await supabase
-        .from('user_stats')
-        .insert({
-          user_id: userId
-        });
+      return res.status(400).json({ 
+        success: false, 
+        error: 'User profile not found. Please log out and sign in again.' 
+      });
     }
 
     // Find game
@@ -565,7 +544,10 @@ io.on('connection', (socket) => {
         .eq('id', game.id);
 
       // Create first round
-      const { data: gameRound } = await supabase
+      console.log('🎯 Creating round with prompt:', randomPrompt);
+      console.log('🎯 Game ID:', game.id);
+      
+      const { data: gameRound, error: roundError } = await supabaseAdmin
         .from('game_rounds')
         .insert({
           game_id: game.id,
@@ -576,6 +558,13 @@ io.on('connection', (socket) => {
         })
         .select()
         .single();
+        
+      if (roundError) {
+        console.error('❌ Round creation error:', roundError);
+        throw roundError;
+      }
+      
+      console.log('✅ Round created successfully:', gameRound);
 
       // Distribute cards to players (for now, we'll send random cards)
       const playerCards = {};
@@ -584,6 +573,8 @@ io.on('connection', (socket) => {
         playerCards[p.user_id] = randomCards;
       }
 
+      console.log('🚀 Emitting game_started with round:', gameRound);
+      
       io.to(gameCode).emit('game_started', {
         game: { ...game, status: 'in_progress', current_round: 1 },
         round: gameRound,
@@ -644,7 +635,7 @@ io.on('connection', (socket) => {
 
       if (submittedCards.length === allPlayers.length) {
         // All players submitted, start voting
-        await supabase
+        await supabaseAdmin
           .from('game_rounds')
           .update({ 
             status: 'voting',
@@ -656,7 +647,10 @@ io.on('connection', (socket) => {
           submittedCards: submittedCards.map(card => ({
             id: card.id,
             meme_card: card.meme_cards,
-            anonymous: true // Don't reveal player identity yet
+            player: {
+              username: card.players.users.username,
+              display_name: card.players.users.display_name
+            }
           }))
         });
       } else {
@@ -782,7 +776,7 @@ async function calculateRoundResults(roundId, gameCode) {
 
     // Update round with winner
     if (winnerId) {
-      await supabase
+      await supabaseAdmin
         .from('game_rounds')
         .update({ 
           status: 'completed',
@@ -864,7 +858,7 @@ async function startNextRound(gameId, gameCode) {
       .eq('id', gameId);
 
     // Create new round
-    const { data: gameRound } = await supabase
+    const { data: gameRound } = await supabaseAdmin
       .from('game_rounds')
       .insert({
         game_id: gameId,

@@ -11,6 +11,7 @@ type GameState = {
   currentRound: GameRound | null;
   playerCards: MemeCard[];
   submittedCards: any[];
+  roundResults: any | null;
   gamePhase: 'lobby' | 'card_selection' | 'voting' | 'results' | 'game_ended';
   isConnected: boolean;
   loading: boolean;
@@ -27,6 +28,7 @@ type GameAction =
   | { type: 'SET_CURRENT_ROUND'; payload: GameRound }
   | { type: 'SET_PLAYER_CARDS'; payload: MemeCard[] }
   | { type: 'SET_SUBMITTED_CARDS'; payload: any[] }
+  | { type: 'SET_ROUND_RESULTS'; payload: any }
   | { type: 'SET_GAME_PHASE'; payload: GameState['gamePhase'] }
   | { type: 'SET_CONNECTED'; payload: boolean }
   | { type: 'SET_LOADING'; payload: boolean }
@@ -41,6 +43,7 @@ const initialState: GameState = {
   currentRound: null,
   playerCards: [],
   submittedCards: [],
+  roundResults: null,
   gamePhase: 'lobby',
   isConnected: false,
   loading: false,
@@ -69,6 +72,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, playerCards: action.payload };
     case 'SET_SUBMITTED_CARDS':
       return { ...state, submittedCards: action.payload };
+    case 'SET_ROUND_RESULTS':
+      return { ...state, roundResults: action.payload };
     case 'SET_GAME_PHASE':
       return { ...state, gamePhase: action.payload };
     case 'SET_CONNECTED':
@@ -237,15 +242,31 @@ export function GameProvider({ children }: GameProviderProps) {
       dispatch({ type: 'REMOVE_PLAYER', payload: playerId });
     });
 
+    // Card submitted (progress update)
+    socketService.onCardSubmitted((data) => {
+      console.log('Card submitted progress:', data);
+      // You can add progress indicator here later
+    });
+
+    // Voting started
+    socketService.onVotingStarted((data: any) => {
+      console.log('🗳️ Voting started with cards:', data);
+      dispatch({ type: 'SET_SUBMITTED_CARDS', payload: data.submittedCards });
+      dispatch({ type: 'SET_GAME_PHASE', payload: 'voting' });
+    });
+
     // Game started
     socketService.onGameStarted((gameData) => {
-      console.log('Game started event received:', gameData);
+      console.log('🚀 Game started event received:', gameData);
+      console.log('🎯 Round data:', gameData.round);
+      console.log('🃏 Player cards:', gameData.playerCards);
       
       dispatch({ type: 'SET_GAME', payload: gameData.game });
       dispatch({ type: 'SET_GAME_PHASE', payload: 'card_selection' });
       
       // Set current round
       if (gameData.round) {
+        console.log('✅ Setting current round ID:', gameData.round.id);
         dispatch({ type: 'SET_CURRENT_ROUND', payload: gameData.round });
       }
       
@@ -275,12 +296,31 @@ export function GameProvider({ children }: GameProviderProps) {
 
     // Round ended
     socketService.onRoundEnded((results) => {
+      console.log('Round ended results:', results);
+      
+      // Store round results
+      dispatch({ type: 'SET_ROUND_RESULTS', payload: results });
       dispatch({ type: 'SET_GAME_PHASE', payload: 'results' });
-      // Update scores and prepare for next round
+      
+      // Update player scores
+      if (results.scores) {
+        const updatedPlayers = state.players.map(player => {
+          const scoreData = results.scores.find((s: any) => s.player.username === player.username);
+          return scoreData ? { ...player, score: scoreData.score } : player;
+        });
+        dispatch({ type: 'SET_PLAYERS', payload: updatedPlayers });
+      }
+      
+      // Auto advance to next round after 5 seconds (same as backend)
+      setTimeout(() => {
+        dispatch({ type: 'SET_GAME_PHASE', payload: 'card_selection' });
+      }, 5000);
     });
 
     // Game ended
     socketService.onGameEnded((finalResults) => {
+      console.log('Game ended with final results:', finalResults);
+      dispatch({ type: 'SET_ROUND_RESULTS', payload: finalResults });
       dispatch({ type: 'SET_GAME_PHASE', payload: 'game_ended' });
     });
   };
@@ -292,15 +332,30 @@ export function GameProvider({ children }: GameProviderProps) {
 
   // Submit Card
   const submitCard = (cardId: string) => {
-    socketService.submitCard(cardId);
-    // Remove card from player's hand
-    const updatedCards = state.playerCards.filter(card => card.id !== cardId);
-    dispatch({ type: 'SET_PLAYER_CARDS', payload: updatedCards });
+    console.log('🎯 Current state.currentRound:', state.currentRound);
+    const roundId = state.currentRound?.id;
+    console.log('🎯 Extracted roundId:', roundId);
+    
+    if (roundId) {
+      console.log('✅ Submitting card with roundId:', roundId);
+      socketService.submitCard(cardId, roundId);
+      // Remove card from player's hand
+      const updatedCards = state.playerCards.filter(card => card.id !== cardId);
+      dispatch({ type: 'SET_PLAYER_CARDS', payload: updatedCards });
+    } else {
+      console.error('❌ No current round ID for submitting card');
+      console.error('❌ state.currentRound:', state.currentRound);
+    }
   };
 
   // Submit Vote
   const submitVote = (playerCardId: string) => {
-    socketService.submitVote(playerCardId);
+    const roundId = state.currentRound?.id;
+    if (roundId) {
+      socketService.submitVote(playerCardId, roundId);
+    } else {
+      console.error('No current round ID for voting');
+    }
   };
 
   // Leave Game

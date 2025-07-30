@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../services/supabase';
 import { User, Session } from '@supabase/supabase-js';
 
@@ -27,7 +28,7 @@ const initialState: AuthState = {
   session: null,
   profile: null,
   isAuthenticated: false,
-  isLoading: true,
+  isLoading: true, // App başlatırken true olur
   error: null,
 };
 
@@ -88,7 +89,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const initializeAuth = async () => {
       try {
-        // Get initial session
+        // 1. Önce AsyncStorage'dan check et
+        console.log('🔍 Checking AsyncStorage for auth data...');
+        const storedAuthData = await AsyncStorage.getItem('@auth_data');
+        console.log('📦 Stored auth data:', storedAuthData ? 'Found' : 'Not found');
+        
+        if (storedAuthData && mounted) {
+          const { user, profile } = JSON.parse(storedAuthData);
+          console.log('🔄 Restoring auth from storage:', user?.email);
+          dispatch({ type: 'SET_USER', payload: user });
+          dispatch({ type: 'SET_PROFILE', payload: profile });
+          console.log('✅ Auth restored from storage successfully');
+        }
+
+        // 2. Sonra Supabase session check et
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -101,6 +115,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
             dispatch({ type: 'SET_SESSION', payload: session });
             dispatch({ type: 'SET_USER', payload: session.user });
             await fetchUserProfile(session.user.id);
+          } else if (!storedAuthData) {
+            // Session yok ve stored data da yok
+            dispatch({ type: 'SET_USER', payload: null });
+            dispatch({ type: 'SET_PROFILE', payload: null });
           }
           dispatch({ type: 'SET_LOADING', payload: false });
         }
@@ -125,6 +143,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
             await fetchUserProfile(session.user.id);
           } else {
             dispatch({ type: 'SET_PROFILE', payload: null });
+            // Clear AsyncStorage on sign out
+            await AsyncStorage.removeItem('@auth_data');
+          }
+          
+          if (event === 'SIGNED_OUT') {
+            await AsyncStorage.removeItem('@auth_data');
+            console.log('🚪 Auth data cleared from storage');
           }
           
           dispatch({ type: 'SET_LOADING', payload: false });
@@ -158,6 +183,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       console.log('User profile fetched successfully:', data);
       dispatch({ type: 'SET_PROFILE', payload: data });
+      
+      // Save to AsyncStorage if we have both user and profile
+      if (state.user && data) {
+        await AsyncStorage.setItem('@auth_data', JSON.stringify({
+          user: state.user,
+          profile: data
+        }));
+        console.log('💾 Auth data saved to storage');
+      }
     } catch (error) {
       console.error('Error fetching user profile:', error);
     }
@@ -235,6 +269,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (data.profile) {
         console.log('Setting profile from signin response:', data.profile);
         dispatch({ type: 'SET_PROFILE', payload: data.profile });
+        
+        // Save to AsyncStorage
+        await AsyncStorage.setItem('@auth_data', JSON.stringify({
+          user: data.user,
+          profile: data.profile
+        }));
+        console.log('💾 Auth data saved to storage (signin):', data.user.email);
       } else {
         console.log('No profile in signin response, creating temporary profile');
         
@@ -253,6 +294,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         };
         console.log('Created temporary profile:', tempProfile);
         dispatch({ type: 'SET_PROFILE', payload: tempProfile });
+        
+        // Save temporary profile to AsyncStorage too
+        await AsyncStorage.setItem('@auth_data', JSON.stringify({
+          user: data.user,
+          profile: tempProfile
+        }));
+        console.log('💾 Temporary auth data saved to storage (signin)');
       }
     } catch (error: any) {
       console.error('Signin error in AuthContext:', error);
@@ -273,6 +321,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (error) {
         throw new Error(error.message);
       }
+
+      // Clear AsyncStorage
+      await AsyncStorage.removeItem('@auth_data');
+      console.log('🚪 Auth data cleared from storage (signout)');
 
       dispatch({ type: 'SIGN_OUT' });
     } catch (error: any) {
