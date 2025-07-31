@@ -720,9 +720,17 @@ io.on('connection', (socket) => {
         .eq('game_id', game.id)
         .eq('is_connected', true);
 
+      console.log(`🗳️ Vote check - Game: ${gameCode}`);
+      console.log(`🗳️ Current votes: ${currentVotes.length}`);
+      console.log(`🗳️ Total players: ${allPlayers.length}`);
+      console.log(`🗳️ All voted? ${currentVotes.length === allPlayers.length}`);
+
       if (currentVotes.length === allPlayers.length) {
+        console.log(`🏁 All players voted! Starting calculateRoundResults for round ${roundId}`);
         // All voted, calculate results
         await calculateRoundResults(roundId, gameCode);
+      } else {
+        console.log(`⏳ Waiting for more votes: ${currentVotes.length}/${allPlayers.length}`);
       }
 
     } catch (error) {
@@ -752,6 +760,7 @@ io.on('connection', (socket) => {
 
 // Helper function to calculate round results
 async function calculateRoundResults(roundId, gameCode) {
+  console.log(`🎯 calculateRoundResults STARTED - Round: ${roundId}, Game: ${gameCode}`);
   try {
     // Get vote counts for each player card
     const { data: voteResults } = await supabase
@@ -799,10 +808,16 @@ async function calculateRoundResults(roundId, gameCode) {
         })
         .eq('id', roundId);
 
-      // Update player score
+      // Update player score - first get current score, then increment
+      const { data: currentPlayer } = await supabase
+        .from('players')
+        .select('score')
+        .eq('id', winnerId)
+        .single();
+        
       await supabase
         .from('players')
-        .update({ score: supabase.raw('score + 1') })
+        .update({ score: (currentPlayer?.score || 0) + 1 })
         .eq('id', winnerId);
     }
 
@@ -820,6 +835,7 @@ async function calculateRoundResults(roundId, gameCode) {
       .single();
 
     // Emit round results
+    console.log(`📡 Emitting round_ended to game ${gameCode}`);
     io.to(gameCode).emit('round_ended', {
       winner: voteResults.find(v => v.player_cards.player_id === winnerId)?.player_cards.players,
       results: voteResults.map(vote => ({
@@ -832,11 +848,15 @@ async function calculateRoundResults(roundId, gameCode) {
         score: p.score
       }))
     });
+    console.log(`✅ round_ended emitted successfully`);
 
     // Check if game should end
+    console.log(`🎮 Game round check: ${game.current_round}/${game.max_rounds}`);
     if (game.current_round >= game.max_rounds) {
+      console.log(`🏁 Game ending! Current round: ${game.current_round}, Max: ${game.max_rounds}`);
       await endGame(game.id, gameCode);
     } else {
+      console.log(`⏰ Starting 5 second delay before next round...`);
       // Start next round after delay
       setTimeout(() => startNextRound(game.id, gameCode), 5000);
     }
@@ -848,6 +868,7 @@ async function calculateRoundResults(roundId, gameCode) {
 
 // Helper function to start next round
 async function startNextRound(gameId, gameCode) {
+  console.log(`🆕 startNextRound CALLED - Game: ${gameId}, Code: ${gameCode}`);
   try {
     const nextRound = await supabase
       .from('games')
@@ -911,11 +932,13 @@ async function startNextRound(gameId, gameCode) {
       playerCards[player.user_id] = playerMemes;
     });
 
+    console.log(`📡 Emitting new_round to game ${gameCode}, round ${newRoundNumber}`);
     io.to(gameCode).emit('new_round', {
       round: gameRound,
       roundNumber: newRoundNumber,
       playerCards: playerCards
     });
+    console.log(`✅ new_round emitted successfully`);
 
   } catch (error) {
     console.error('Start next round error:', error);
@@ -988,7 +1011,8 @@ function getRandomMemes(memeArray, count) {
 
 // Start server
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+const HOST = process.env.HOST || '10.34.0.19';
+server.listen(PORT, HOST, () => {
+  console.log(`🚀 Server running on http://${HOST}:${PORT}`);
   console.log(`🎮 Game server is ready!`);
 }); 

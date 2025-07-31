@@ -133,7 +133,7 @@ export function GameProvider({ children }: GameProviderProps) {
   const { state: authState } = useAuth();
 
   // API Base URL
-  const API_BASE = 'http://192.168.1.110:3000/api';
+  const API_BASE = 'http://10.34.0.19:3000/api';
 
   // Helper function to get auth headers
   const getAuthHeaders = () => {
